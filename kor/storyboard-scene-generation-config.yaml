@@ -1,0 +1,147 @@
+---
+job: extension
+config:
+  # ENG: this name will be the folder and filename name
+  # KOR: 이름
+  name: "whatever name you want"
+  process:
+    - type: 'sd_trainer'
+      # ENG: root folder to save training sessions/samples/weights
+      # KOR: 세션과 Sample 그리고 Weights를 저장할 Root 디렉토리 지정
+      training_folder: "output"
+      # ENG: uncomment to see performance stats in the terminal every N steps
+      # KOR: N steps에 한번씩 성능 상태를 보고 싶다면 주석해제
+      performance_log_every: 500
+      device: cuda:0
+      # ENG
+      # if a trigger word is specified, it will be added to captions of training data if it does not already exist
+      # alternatively, in your captions you can add [trigger] and it will be replaced with the trigger word
+      # KOR
+      # 만약 훈련 데이터의 trigger가 지정돼 있다면 훈련데이터의 Caption에 [trigger]를 포함시키면 자동으로 교체가 됩니다.
+      # 만약 지정이 돼있지 않다면 캡션에 자동으로 설정될겁니다.
+      trigger_word: "trigger"
+      network:
+        type: "lora"
+        linear: 16
+        linear_alpha: 16
+      save:
+        # ENG: precision to save
+        # KOR: 저장할 데이터 타입
+        dtype: float16 
+        # ENG: save every this many steps
+        # KOR: 저장 주기 설정 (1000 -> 250-500-750-1000)
+        save_every: 250 
+        # ENG: how many intermittent saves to keep
+        # KOR: (의역) 임시저장 크기
+        max_step_saves_to_keep: 4
+        # ENG: change this to True to push your trained model to Hugging Face.
+        # KOR: 허깅페이스 업로드할거면 True 아니면 False
+        push_to_hub: true
+        # ENG: You can either set up a HF_TOKEN env variable or you'll be prompted to log-in         
+        # KOR: 환경변수로 HF_TOKEN을 설정하거나 아닐경우에 입력하라고 뜸(환경변수 추천)
+        hf_repo_id: jwywoo/storyboard-scene-generation-model-flux-v2
+        # ENG: whether the repo is private or public
+        # KOR: 저장소 공개 여부
+        hf_private: true
+      datasets:
+        # ENG
+        # datasets are a folder of images. captions need to be txt files with the same name as the image
+        # for instance image2.jpg and image2.txt. Only jpg, jpeg, and png are supported currently
+        # images will automatically be resized and bucketed into the resolution specified
+        # on windows, escape back slashes with another backslash so
+        # "C:\\path\\to\\images\\folder"
+        # KOR
+        # 데이터셋은 학습시킬 이미지가 들어있는 폴더를 말합니다. 
+        # 각 이미지에 맞는 Caption(이미지에 대한 설명)이 필요합니다. 
+        # 예를들어 image2.png라는 이미지가 있다면 Caption txt는 이미지와 이름이 동일하게 image2.txt와 같이 지정해야합니다.
+        - folder_path: "/path/to/images/folder"
+          caption_ext: "txt"
+          # ENG: will drop out the caption 5% of time
+          # KOR: 훈련데이터의 Caption 드롭률
+          caption_dropout_rate: 0.05
+          # ENG: shuffle caption order, split by commas
+          # KOR: 쉽표로 구분된 캡션 순서 석기 
+          shuffle_tokens: false  
+          # ENG: leave this true unless you know what you're doing
+          # KOR: 그냥 True로 내비두세요
+          cache_latents_to_disk: true 
+          # ENG: flux enjoys multiple resolutions
+          # KOR: Flux는 여러 해상도를 사용합니다.
+          resolution: [ 512, 768, 1024 ] 
+      train:
+        batch_size: 1
+        # ENG: total number of steps to train 500 - 4000 is a good range
+        # KOR: 500 - 40000이 훈련하기 좋은 횟수입니다.
+        steps: 2000 
+        gradient_accumulation_steps: 1
+        train_unet: true
+        # ENG: probably won't work with flux
+        # KOR: Flux에 해당사항 없습니다.
+        train_text_encoder: false  
+        # ENG: need the on unless you have a ton of vram
+        # KOR: VRAM이 엄청 많은게 아니라면 내비두세요.
+        gradient_checkpointing: true 
+        # ENG: for training only 
+        # KOR: 훈련할 때만
+        noise_scheduler: "flowmatch" 
+        optimizer: "adamw8bit"
+        lr: 1e-4
+        # ENG: uncomment this to skip the pre training sample
+        # KOR: Training Sample을 무시하고 싶다면 주석해제
+#        skip_first_sample: true
+        # ENG: uncomment to completely disable sampling
+        # KOR: 학습중 생성되는 샘플을 생성하기 싫다면 주석해제(생각보다 샘플 생성으로 시간을 많이씁니다.)
+#        disable_sampling: true
+        # ENG: uncomment to use new vell curved weighting. Experimental but may produce better results
+        # KOR: Vell Curved Weighting을 쓰고 싶다면 주석해제 하세요. 실험적이지만 생각보다 좋은 결과가 나올수 있답니다.
+#        linear_timesteps: true
+
+        # ENG: ema will smooth out learning, but could slow it down. Recommended to leave on.
+        # KOR: 내비두셈
+        ema_config:
+          use_ema: true
+          ema_decay: 0.99
+
+        # ENG: will probably need this if gpu supports it for flux, other dtypes may not work correctly
+        # KOR: GPU가 사용가능하다면 그대로 두세요. 다른 데이터 타입은 아마 안될겁니다.
+        dtype: bf16
+      model:
+        # ENG: huggingface model name or path
+        # KOR: huggingface에서 가져와 사용할 모델 이름 혹은 모델 참조 경로
+        name_or_path: "black-forest-labs/FLUX.1-dev"
+        is_flux: true
+        # ENG: run 8bit mixed precision
+        # KOR: 8bit Mixed Precision 
+        quantize: true
+        # ENG: uncomment this if the GPU is connected to your monitors. It will use less vram to quantize, but is slower.
+        # KOR: Quantize에서 VRAM을 적게 사용합니다.(하지만 느려지죠)
+#        low_vram: true 
+      sample:
+        # ENG: must match train.noise_scheduler
+        # KOR: 위에 train.noise_scheduler와 무조건 같아야합니다.
+        sampler: "flowmatch" 
+        # ENG: sample every this many steps
+        # KOR: 샘플 생성주기 입니다.
+        sample_every: 250 
+        width: 1024
+        height: 1024
+        prompts:
+          # ENG: you can add [trigger] to the prompts here and it will be replaced with the trigger word
+          # KOR: [trigger]를 넣으면 자동으로 Trigger 단어로 대치도리겁니다.
+          - "[trigger] black and white color illustration, two asian males in their late 30s and one asian female in her late 20s having a conversation about economic issue in a newsroom, while laughing and arguing"
+          - "[trigger] black and white color illustration, one young female professor explains about why people can't date while 3~4 students in their early 30s got shocked"
+          - "[trigger] black and white color illustration, one asian male in his 30s and one asian female in her early 20s sitting on the different couch talking about their life while the guy is trying to make fun of her"
+          - "[trigger] black and white color illustration, an Asian man in his early 30s showing off his cool electronic products on the table and trying to explain its special features"
+          - "[trigger] black and white color illustration, An asian male in his early 20's and asian female in her early 20's are sitting on the wooden floor with some snacks, and drinking and laughing, black and white color theme"
+        # ENG: not used on flux
+        # KOR: Negative String의 경우 Flux에 사용되지 않습니다.
+        neg: ""
+        seed: 42
+        walk_seed: true
+        guidance_scale: 4
+        sample_steps: 20
+# ENG: you can add any additional meta info here. [name] is replaced with config name at top
+# KOR: 추가적인 Meta Data를 입력하세요.
+meta:
+  name: "[name]"
+  version: '1.0'
